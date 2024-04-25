@@ -1,0 +1,4 @@
+inkscape \
+  --without-gui \
+  --file=input.pdf \
+  --export-plain-svg=output.svg 
