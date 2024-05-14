@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flask Leaflet </title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #mapid {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="mapid"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script>
+    var mymap = L.map('mapid').setView([43.8563, 18.4131], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+    }).addTo(mymap);
+
+    L.marker([43.8563, 18.4131]).addTo(mymap)
+        .bindPopup('Sarajevo')
+        .openPopup();
+
+    var geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false,
+    })
+    .on('markgeocode', function(e) {
+        var bbox = e.geocode.bbox;
+        var poly = L.polygon([
+            bbox.getSouthEast(),
+            bbox.getNorthEast(),
+            bbox.getNorthWest(),
+            bbox.getSouthWest()
+        ]).addTo(mymap);
+        mymap.fitBounds(poly.getBounds());
+    })
+    .addTo(mymap);
+</script>
+
+
+</body>
+</html>
