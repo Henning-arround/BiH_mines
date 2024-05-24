@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Flask Leaflet </title>
+    <title>Flask Leaflet</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <style>
@@ -20,6 +20,15 @@
 
 <div id="mapid"></div>
 
+<svg width="0" height="0">
+    <defs>
+        <pattern id="red-dots" patternUnits="userSpaceOnUse" width="10" height="10">
+            <rect width="10" height="10" fill="red" fill-opacity="0.1"/>
+            <circle cx="5" cy="5" r="1" fill="red" />
+        </pattern>
+    </defs>
+</svg>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script>
@@ -33,14 +42,22 @@
         .bindPopup('Sarajevo')
         .openPopup();
 
-// Load GeoJSON data
-fetch('/static/2384-I.geojson')
-    .then(response => response.json())
-    .then(data => {
-        L.geoJSON(data).addTo(mymap);
-    });
+    // Load GeoJSON data
+    fetch('/static/suspect_areas.geojson')
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data, {
+                style: function (feature) {
+                    return {
+                        fillColor: 'url(#red-dots)',
+                        fillOpacity: 1,
+                        color: 'red',
+                        weight: 1
+                    };
+                }
+            }).addTo(mymap);
+        });
 </script>
-
 
 </body>
 </html>
