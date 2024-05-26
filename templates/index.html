@@ -78,32 +78,64 @@
             });
             geojsonLayer.addTo(mymap);
         });
-     // Add a custom control with a checkbox to toggle the GeoJSON layer
-     var control = L.control({position: 'topright'});
 
-        control.onAdd = function (map) {
-            var div = L.DomUtil.create('div', 'leaflet-control-layers');
-            var checkbox = L.DomUtil.create('input', '', div);
-            checkbox.type = 'checkbox';
-            checkbox.checked = true;
-            checkbox.id = 'toggle-geojson';
-
-            var label = L.DomUtil.create('label', '', div);
-            label.htmlFor = 'toggle-geojson';
-            label.appendChild(document.createTextNode(' Show Suspect Areas'));
-
-            checkbox.onchange = function () {
-                if (checkbox.checked) {
-                    geojsonLayer.addTo(mymap);
-                } else {
-                    mymap.removeLayer(geojsonLayer);
+        // Code to load cleared_areas.geojson
+    var clearedAreasLayer;
+    fetch('/static/cleared_areas.geojson')
+        .then(response => response.json())
+        .then(data => {
+            clearedAreasLayer = L.geoJSON(data, {
+                style: function (feature) {
+                    return {
+                        fillColor: 'green', // Different fill color
+                        fillOpacity: 0.5,
+                        color: 'green',
+                        weight: 1
+                    };
                 }
-            };
+            });
+            clearedAreasLayer.addTo(mymap);
+        });
+        // Modify the custom control to handle both layers
+    var control = L.control({position: 'topright'});
+    control.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'leaflet-control-layers');
 
-            return div;
+        // Suspect areas checkbox
+        var checkboxSuspect = L.DomUtil.create('input', '', div);
+        checkboxSuspect.type = 'checkbox';
+        checkboxSuspect.checked = true;
+        checkboxSuspect.id = 'toggle-geojson-suspect';
+        var labelSuspect = L.DomUtil.create('label', '', div);
+        labelSuspect.htmlFor = 'toggle-geojson-suspect';
+        labelSuspect.appendChild(document.createTextNode(' Show Suspect Areas'));
+        checkboxSuspect.onchange = function () {
+            if (checkboxSuspect.checked) {
+                geojsonLayer.addTo(mymap);
+            } else {
+                mymap.removeLayer(geojsonLayer);
+            }
         };
 
-        control.addTo(mymap);
+        // Cleared areas checkbox
+        var checkboxCleared = L.DomUtil.create('input', '', div);
+        checkboxCleared.type = 'checkbox';
+        checkboxCleared.checked = true;
+        checkboxCleared.id = 'toggle-geojson-cleared';
+        var labelCleared = L.DomUtil.create('label', '', div);
+        labelCleared.htmlFor = 'toggle-geojson-cleared';
+        labelCleared.appendChild(document.createTextNode(' Show Cleared Areas'));
+        checkboxCleared.onchange = function () {
+            if (checkboxCleared.checked) {
+                clearedAreasLayer.addTo(mymap);
+            } else {
+                mymap.removeLayer(clearedAreasLayer);
+            }
+        };
+
+        return div;
+    };
+    control.addTo(mymap);
 </script>
 
 </body>
