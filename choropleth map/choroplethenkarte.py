@@ -7,11 +7,11 @@ from folium import plugins
 # Überprüfen des aktuellen Arbeitsverzeichnisses
 print("Current working directory:", os.getcwd())
 
-# Ändern des Arbeitsverzeichnisses auf das Verzeichnis der Python-Datei
+# Ändern des Arbeitsverzeichnisses auf das Verzeichnis der Datei
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 print("New working directory:", os.getcwd())
 
-# Schritt 1: Laden der Geodaten von Bosnien (z.B. administrative Grenzen)
+# Schritt 1: Laden der Geodaten
 bosnia_gdf = gpd.read_file('geoBoundaries-BIH-ADM2.shp')
 print(bosnia_gdf.head())
 
@@ -26,7 +26,7 @@ bosnia_gdf = bosnia_gdf.merge(mines_data, on='shapeName')
 # Erstellen einer Grundkarte
 m = folium.Map(location=[43.9159, 17.6791], zoom_start=8)
 
-# Hinzufügen von ethnischen Mehrheiten zur Karte und Anpassen der Landminen-Opazität
+# Hinzufügen von ethnischen Mehrheiten und Anpassen der Opazität
 for idx, row in bosnia_gdf.iterrows():
     # Bestimmen der Farbe basierend auf der ethnischen Mehrheit
     if row['ethnicMajority'] == 'Bosniaken':
@@ -36,11 +36,11 @@ for idx, row in bosnia_gdf.iterrows():
     elif row['ethnicMajority'] == 'Kroaten':
         fill_color = 'blue'
     else:
-        fill_color = 'gray'  # Für den Fall, dass keine ethnische Mehrheit angegeben ist
+        fill_color = 'gray'  # Für den Fall, dass keine ethnische Mehrheit angegeben ist, sollte nicht vorkommen
 
     # Bestimmen der Opazität basierend auf der Landminenverteilung
     if pd.isna(row['landmine_percentage']):
-        fill_opacity = 0.2  # Niedrige Opazität für fehlende Landminendaten
+        fill_opacity = 0.2  # Niedrige Opazität für fehlende Landminendaten, sollte nicht vorkommen 
     else:
         fill_opacity = row['landmine_percentage'] / bosnia_gdf['landmine_percentage'].max()
 
