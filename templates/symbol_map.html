@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flask Leaflet</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <style>
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+#mapid {
+    height: 100vh;
+    width: 100vw;
+}
+
+.leaflet-control-layers {
+    background: rgba(255, 255, 255, 0.5);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    text-align: left;
+    transform: translateY(100%); /* Center it vertically */
+}
+
+.headline {
+    font-weight: bold;
+    color: black;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.leaflet-control-layers div {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.leaflet-control-layers label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.leaflet-control-layers input[type="checkbox"] {
+    flex: 0 0 20px;
+    margin-right: 10px;
+}
+
+.icon-box {
+    flex: 0 0 40px;
+    height: 40px;
+    margin-right: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.icon-suspect, .icon-cleared {
+    width: 20px;
+    height: 20px;
+    background: transparent;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 0% 50%);
+}
+
+.icon-suspect {
+    background: rgba(255, 0, 0, 0.5);
+    border: 1px solid red;
+}
+
+.icon-cleared {
+    background: rgba(0, 0, 255, 0.5);
+    border: 1px solid blue;
+}
+
+.icon-incidents, .icon-lifted {
+    flex: 0 0 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    position: relative; /* Added position relative */
+}
+
+.icon-incidents::before,
+.icon-lifted::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.5); /* Inner circle color with opacity */
+    border-radius: 50%; /* Make it circular */
+}
+
+.icon-incidents {
+    background: orange;
+    box-shadow: 0 0 0 3px orange; /* Thicker border */
+}
+
+.icon-lifted {
+    background: green;
+    box-shadow: 0 0 0 3px green; /* Thicker border */
+}
+
+ 
+    </style>
+</head>
+<body>
+
+    <div id="mapid"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script>
+        var mymap = L.map('mapid').setView([43.8563, 18.4131], 13);
+    
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(mymap);
+    
+        // Add the search bar
+        var geocoder = L.Control.geocoder({
+                defaultMarkGeocode: false
+            })
+        .on('markgeocode', function(e) {
+            var latlng = e.geocode.center;
+            mymap.setView(latlng, 13); // Change the zoom level if needed
+            var marker = L.marker(latlng).addTo(mymap);
+    
+            // Add an event listener to remove the marker when the map is moved
+            mymap.on('move', function() {
+                mymap.removeLayer(marker);
+            });
+        })
+        .addTo(mymap);
+    
+       // Create a variable to hold the GeoJSON layers
+    var geojsonLayer, clearedAreasLayer, incidentsLayer, liftedMinefieldsLayer;
+
+// Load GeoJSON data
+fetch('/static/suspect_areas.geojson')
+    .then(response => response.json())
+    .then(data => {
+        geojsonLayer = L.geoJSON(data, {
+            style: function (feature) {
+                return {
+                    fillColor: 'red',
+                    fillOpacity: 0.3,
+                    color: 'red',
+                    weight: 1
+                };
+            }
+        });
+        geojsonLayer.addTo(mymap);
+    });
+
+// Load cleared_areas.geojson
+fetch('/static/cleared_areas.geojson')
+    .then(response => response.json())
+    .then(data => {
+        clearedAreasLayer = L.geoJSON(data, {
+            style: function (feature) {
+                return {
+                    fillColor: 'blue', // Different fill color
+                    fillOpacity: 0.3,
+                    color: 'blue',
+                    weight: 1
+                };
+            }
+        });
+        clearedAreasLayer.addTo(mymap);
+    });
+
+// Load incidents.geojson
+fetch('/static/incidents.geojson')
+    .then(response => response.json())
+    .then(data => {
+        incidentsLayer = L.geoJSON(data, {
+            pointToLayer: function (feature, latlng) {
+                // Using L.circle to create a simple circle marker
+                return L.circle(latlng, {
+                    radius: 50, // Radius in meters; adjust as needed for visibility
+                    color: 'orange', // Outline color
+                    fillColor: 'orange', // Fill color
+                    fillOpacity: 0.5, // Fill opacity
+                });
+            }
+        }).addTo(mymap);
+    });
+
+// Load lifted_minefields.geojson
+fetch('/static/lifted_minefields.geojson')
+    .then(response => response.json())
+    .then(data => {
+        liftedMinefieldsLayer = L.geoJSON(data, {
+            pointToLayer: function (feature, latlng) {
+                // Using L.circle to create a simple circle marker
+                return L.circle(latlng, {
+                    radius: 30, // Radius in meters; adjust as needed for visibility
+                    color: 'green', // Outline color
+                    fillColor: 'green', // Fill color
+                    fillOpacity: 0.5, // Fill opacity
+
+                });
+            }
+        }).addTo(mymap);
+    });
+
+// Modify the custom control to handle all layers
+var control = L.control({position: 'topright'});
+control.onAdd = function (map) {
+    var div = L.DomUtil.create('div', 'leaflet-control-layers');
+
+    // Add the headline
+    var headline = L.DomUtil.create('div', 'headline', div);
+    headline.innerHTML = 'Add Different Layers';
+
+    // Suspect areas checkbox
+    var containerSuspect = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxSuspect = L.DomUtil.create('input', '', containerSuspect);
+    checkboxSuspect.type = 'checkbox';
+    checkboxSuspect.checked = true;
+    checkboxSuspect.id = 'toggle-geojson-suspect';
+    var iconSuspect = L.DomUtil.create('span', 'icon-box icon-suspect', containerSuspect);
+    var labelSuspect = L.DomUtil.create('label', 'text-label', containerSuspect);
+    labelSuspect.htmlFor = 'toggle-geojson-suspect';
+    labelSuspect.appendChild(document.createTextNode('Suspect Areas'));
+    checkboxSuspect.onchange = function () {
+        if (checkboxSuspect.checked) {
+            geojsonLayer.addTo(mymap);
+        } else {
+            mymap.removeLayer(geojsonLayer);
+        }
+    };
+
+    // Cleared areas checkbox
+    var containerCleared = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxCleared = L.DomUtil.create('input', '', containerCleared);
+    checkboxCleared.type = 'checkbox';
+    checkboxCleared.checked = true;
+    checkboxCleared.id = 'toggle-geojson-cleared';
+    var iconCleared = L.DomUtil.create('span', 'icon-box icon-cleared', containerCleared);
+    var labelCleared = L.DomUtil.create('label', 'text-label', containerCleared);
+    labelCleared.htmlFor = 'toggle-geojson-cleared';
+    labelCleared.appendChild(document.createTextNode('Cleared Areas'));
+    checkboxCleared.onchange = function () {
+        if (checkboxCleared.checked) {
+            clearedAreasLayer.addTo(mymap);
+        } else {
+            mymap.removeLayer(clearedAreasLayer);
+        }
+    };
+
+    // Incidents checkbox
+    var containerIncidents = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxIncidents = L.DomUtil.create('input', '', containerIncidents);
+    checkboxIncidents.type = 'checkbox';
+    checkboxIncidents.checked = true;
+    checkboxIncidents.id = 'toggle-geojson-incidents';
+    var iconIncidents = L.DomUtil.create('span', 'icon-box icon-incidents', containerIncidents);
+    var labelIncidents = L.DomUtil.create('label', 'text-label', containerIncidents);
+    labelIncidents.htmlFor = 'toggle-geojson-incidents';
+    labelIncidents.appendChild(document.createTextNode('Incidents'));
+    checkboxIncidents.onchange = function () {
+        if (checkboxIncidents.checked) {
+            incidentsLayer.addTo(mymap);
+        } else {
+            mymap.removeLayer(incidentsLayer);
+        }
+    };
+
+    // Lifted minefields checkbox
+    var containerLifted = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxLiftedMinefields = L.DomUtil.create('input', '', containerLifted);
+    checkboxLiftedMinefields.type = 'checkbox';
+    checkboxLiftedMinefields.checked = true;
+    checkboxLiftedMinefields.id = 'toggle-geojson-lifted-minefields';
+    var iconLiftedMinefields = L.DomUtil.create('span', 'icon-box icon-lifted', containerLifted);
+    var labelLiftedMinefields = L.DomUtil.create('label', 'text-label', containerLifted);
+    labelLiftedMinefields.htmlFor = 'toggle-geojson-lifted-minefields';
+    labelLiftedMinefields.appendChild(document.createTextNode('Lifted Minefields'));
+    checkboxLiftedMinefields.onchange = function () {
+        if (checkboxLiftedMinefields.checked) {
+            liftedMinefieldsLayer.addTo(mymap);
+        } else {
+            mymap.removeLayer(liftedMinefieldsLayer);
+        }
+    };
+
+    return div;
+};
+
+control.addTo(mymap);
+
+</script>
+
+</body>
+</html>
