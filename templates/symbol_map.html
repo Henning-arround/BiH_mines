@@ -148,7 +148,76 @@ html, body {
     
        // Create a variable to hold the GeoJSON layers
    // Create a variable to hold the GeoJSON layers
-var geojsonLayer, clearedAreasLayer, incidentsLayer, liftedMinefieldsLayer;
+
+   var cantonBoundariesLayer;
+
+// Load census data
+var censusData = {};
+
+fetch('/static/census.csv')
+            .then(response => response.text())
+            .then(csvText => {
+                var lines = csvText.split('\n');
+                lines.forEach(line => {
+                    var [location, bosniaks, croats, serbs, other] = line.split(',');
+                    location = location.trim();
+                    bosniaks = parseFloat(bosniaks.trim());
+                    croats = parseFloat(croats.trim());
+                    serbs = parseFloat(serbs.trim());
+                    other = parseFloat(other.trim());
+                    censusData[location] = { bosniaks, croats, serbs, other };
+                });
+                console.log('Census data loaded:', censusData); // Add log to check loaded data
+            });
+
+  // Load canton boundaries GeoJSON and style based on census data
+  fetch('/static/cantons.geojson')
+            .then(response => response.json())
+            .then(data => {
+                cantonBoundariesLayer = L.geoJSON(data, {
+                    style: function (feature) {
+                        var location = feature.properties.shapeName;
+                        var majorityGroup = 'Other';
+                        if (censusData[location]) {
+                            var { bosniaks, croats, serbs, other } = censusData[location];
+                            console.log('Processing location:', location, 'Data:', bosniaks, croats, serbs, other); // Log data for each location
+                            var maxValue = Math.max(bosniaks, croats, serbs, other);
+                            if (maxValue === bosniaks) {
+                                majorityGroup = 'Bosniaks';
+                            } else if (maxValue === croats) {
+                                majorityGroup = 'Croats';
+                            } else if (maxValue === serbs) {
+                                majorityGroup = 'Serbs';
+                            } else if (maxValue === other) {
+                                majorityGroup = 'Other';
+                            }
+                        }
+
+                        var fillColor;
+                        if (majorityGroup === 'Bosniaks') {
+                            fillColor = 'yellow';
+                        } else if (majorityGroup === 'Croats') {
+                            fillColor = 'red';
+                        } else if (majorityGroup === 'Serbs') {
+                            fillColor = 'blue';
+                        } else {
+                            fillColor = 'gray';
+                            
+                        }
+
+                        console.log('Location:', location, 'Majority Group:', majorityGroup, 'Fill Color:', fillColor); // Log the final color and majority group
+
+                        return {
+                            fillColor: fillColor,
+                            fillOpacity: 0.1,
+                            color: 'black',
+                            weight: 1
+                        };
+                    }
+                });
+                cantonBoundariesLayer.addTo(mymap);
+            });
+var geojsonLayer, clearedAreasLayer, incidentsLayer, liftedMinefieldsLayer, cantonBoundariesLayer;
 
 // Load GeoJSON data
 fetch('/static/suspect_areas.geojson')
