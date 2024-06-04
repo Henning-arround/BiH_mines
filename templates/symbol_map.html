@@ -18,7 +18,7 @@ html, body {
 
 .leaflet-control-layers {
     background: rgba(255, 255, 255, 0.5);
-    padding: 20px; /* Increased padding from 10px to 20px */
+    padding: 10px; /* Increased padding from 10px to 20px */
     border-radius: 5px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
     text-align: left;
@@ -86,13 +86,13 @@ html, body {
 
 .icon-incidents {
     flex-basis: 0;
-    margin-right: 20%;
+    margin-right: 32px;
     border-color: orange; /* Border color for incidents */
 }
 
 .icon-lifted {
     flex-basis: 0;
-    margin-right: 20%;
+    margin-right: 32px;
     border-color: green; /* Border color for lifted minefields */
 }
 
@@ -113,6 +113,59 @@ html, body {
 .icon-lifted::before {
     background: green; /* Inner circle background for lifted minefields */
 }
+.icon-cantons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-right: 20px;
+
+}
+.legend {
+    display: flex;
+    flex-direction: column; /* Align items in a column */
+    align-items: center; /* Center items horizontally */
+    background: rgba(255, 255, 255, 0.5);
+    padding: 5px; /* Add padding */
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    text-align: center; /* Center-align the text */
+    font-size: 14px; /* Increase text size */
+    transform: translateY(30%); /* Center it vertically */
+}
+
+.legend .legend-title {
+    margin-bottom: 10px; /* Space below the title */
+}
+
+.legend .legend-item-container {
+    display: flex;
+    justify-content: center; /* Center items horizontally */
+}
+
+.legend .legend-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Align items to the left */
+    margin-bottom: 4px; /* Space between items */
+    margin-right: 10px;
+    width: 100%;
+}
+
+.legend i {
+    display: inline-block; /* Align boxes inline */
+    width: 18px;
+    height: 18px;
+    opacity: 0.3; /* Set opacity */
+    border-radius: 3px; /* Optional: rounded corners for the color boxes */
+    margin-right: 5px; /* Space between the icon and text */
+}
+
+
+</style>
+
+
 
 
     </style>
@@ -159,15 +212,16 @@ fetch('/static/census.csv')
             .then(csvText => {
                 var lines = csvText.split('\n');
                 lines.forEach(line => {
-                    var [location, bosniaks, croats, serbs, other] = line.split(',');
-                    location = location.trim();
-                    bosniaks = parseFloat(bosniaks.trim());
-                    croats = parseFloat(croats.trim());
-                    serbs = parseFloat(serbs.trim());
-                    other = parseFloat(other.trim());
-                    censusData[location] = { bosniaks, croats, serbs, other };
+                    if (line.trim() !== '') { // Check if the line is not empty
+                        var [location, bosniaks, croats, serbs, other] = line.split(',');
+                        location = location.trim();
+                        bosniaks = parseFloat(bosniaks.trim());
+                        croats = parseFloat(croats.trim());
+                        serbs = parseFloat(serbs.trim());
+                        other = parseFloat(other.trim());
+                        censusData[location] = { bosniaks, croats, serbs, other };
+                    }
                 });
-                console.log('Census data loaded:', censusData); // Add log to check loaded data
             });
 
   // Load canton boundaries GeoJSON and style based on census data
@@ -180,7 +234,6 @@ fetch('/static/census.csv')
                         var majorityGroup = 'Other';
                         if (censusData[location]) {
                             var { bosniaks, croats, serbs, other } = censusData[location];
-                            console.log('Processing location:', location, 'Data:', bosniaks, croats, serbs, other); // Log data for each location
                             var maxValue = Math.max(bosniaks, croats, serbs, other);
                             if (maxValue === bosniaks) {
                                 majorityGroup = 'Bosniaks';
@@ -195,28 +248,52 @@ fetch('/static/census.csv')
 
                         var fillColor;
                         if (majorityGroup === 'Bosniaks') {
-                            fillColor = 'yellow';
+                            fillColor = 'green';
                         } else if (majorityGroup === 'Croats') {
-                            fillColor = 'red';
-                        } else if (majorityGroup === 'Serbs') {
                             fillColor = 'blue';
+                        } else if (majorityGroup === 'Serbs') {
+                            fillColor = 'red';
                         } else {
                             fillColor = 'gray';
                             
                         }
 
-                        console.log('Location:', location, 'Majority Group:', majorityGroup, 'Fill Color:', fillColor); // Log the final color and majority group
-
                         return {
                             fillColor: fillColor,
                             fillOpacity: 0.1,
                             color: 'black',
-                            weight: 1
+                            weight: 0.5
                         };
                     }
                 });
-                cantonBoundariesLayer.addTo(mymap);
             });
+
+        // Load administrative_level_1.geojson
+
+// Predefined colors array
+var colors = ['purple', 'red', 'green']; // Example colors: red, blue, purple
+
+// Load administrative_level_1.geojson with cycling colors for each polygon
+var administrativeLevel1Layer;
+var colorIndex = 0; // Initialize color index
+
+fetch('/static/administrative_level_1.geojson')
+    .then(response => response.json())
+    .then(data => {
+        administrativeLevel1Layer = L.geoJSON(data, {
+            style: function (feature) {
+                var fillColor = colors[colorIndex % colors.length]; // Cycle through colors array
+                colorIndex++; // Increment index for next polygon
+                return {
+                    color: 'brown', // Uniform dark brown borders for all polygons
+                    weight: 2, // Thicker border lines
+                    fillColor: fillColor, // Use cycling color
+                    fillOpacity: 0.05  // Slightly transparent fill
+                };
+            }
+        });
+        // Do not add to the map initially
+    });
 var geojsonLayer, clearedAreasLayer, incidentsLayer, liftedMinefieldsLayer, cantonBoundariesLayer;
 
 // Load GeoJSON data
@@ -370,7 +447,88 @@ control.onAdd = function (map) {
         }
     };
 
+     // Cantons checkbox
+     var containerCantons = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxCantons = L.DomUtil.create('input', '', containerCantons);
+    checkboxCantons.type = 'checkbox';
+    checkboxCantons.checked = false;  // Unchecked initially
+    checkboxCantons.id = 'toggle-geojson-cantons';
+    
+    var iconCantons = L.DomUtil.create('span', 'icon-cantons', containerCantons);
+    iconCantons.innerHTML = '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="11.6,11.6 20.4,14 31.2,6.4 36.8,15.2 30.8,32.8 18.4,30.4 13.2,26 2,26.4 5.6,16" stroke="black" stroke-width="2" fill="transparent"/></svg>';
+
+    var labelCantons = L.DomUtil.create('label', 'text-label', containerCantons);
+    labelCantons.htmlFor = 'toggle-geojson-cantons';
+    labelCantons.appendChild(document.createTextNode('ADM Lvl 3'));
+    checkboxCantons.onchange = function () {
+        if (checkboxCantons.checked) {
+            cantonBoundariesLayer.addTo(mymap).bringToBack();
+            addCantonLegend();
+        } else {
+            mymap.removeLayer(cantonBoundariesLayer);
+            removeCantonLegend();
+        }
+    };
+
+
+    // Adding checkbox for Administrative Level 1
+var containerAdminLvl1 = L.DomUtil.create('div', 'flex-container', div);
+var checkboxAdminLvl1 = L.DomUtil.create('input', '', containerAdminLvl1);
+checkboxAdminLvl1.type = 'checkbox';
+checkboxAdminLvl1.id = 'toggle-geojson-admin-lvl1';
+var iconAdminLvl1 = L.DomUtil.create('span', 'icon-cantons', containerAdminLvl1); // Using the same icon as for cantons
+iconAdminLvl1.innerHTML = '<svg width="40" height="40" viewBox="0 0 40 40"><polyline points="2.0,11.6 3.2,7.6 6.4,8.4 9.6,9.2 11.6,11.6 10.0,13.2 7.6,12.4 8.0,14.8 9.6,17.2 11.6,18.8 12.4,20.0 15.6,21.2 16.4,18.8 16.4,16.8 18.0,16.8 21.2,16.0 23.2,14.8 26.4,12.4 29.2,11.2 30.8,11.2 34.0,9.6 34.0,12.4 31.6,14.4 29.2,14.8 26.8,15.6 23.6,18.4 26.4,20.8 24.0,20.8 21.2,22.4 22.0,25.2 22.8,27.6 23.6,31.2 23.6,33.2 23.6,36.0 24.0,39.2 22.4,40.0" stroke="black" stroke-width="2" fill="none"/></svg>';
+var labelAdminLvl1 = L.DomUtil.create('label', 'text-label', containerAdminLvl1);
+labelAdminLvl1.htmlFor = 'toggle-geojson-admin-lvl1';
+labelAdminLvl1.appendChild(document.createTextNode('ADM Lvl 1'));
+checkboxAdminLvl1.onchange = function () {
+    if (checkboxAdminLvl1.checked) {
+        administrativeLevel1Layer.addTo(mymap).bringToBack();
+    } else {
+        mymap.removeLayer(administrativeLevel1Layer);
+    }
+};
+// Add canton legend function
+function addCantonLegend() {
+    var legend = L.control({ position: 'bottomright' });
+
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend');
+
+        // Add legend title
+        div.innerHTML += '<div class="legend-title"><strong>The colours represent the majority of an ethnic group according to the 2013 census in the individual cantons</strong></div>';
+
+        var grades = ['Bosniaks', 'Croats', 'Serbs', 'Other'];
+        var colors = ['green', 'blue', 'red', 'gray'];
+
+        // Container to center the items
+        var container = L.DomUtil.create('div', 'legend-item-container', div);
+
+        // Loop through grades and generate a label with a colored square for each grade
+        for (var i = 0; i < grades.length; i++) {
+            var item = '<div class="legend-item"><i style="background:' + colors[i] + '"></i><span>' + grades[i] + '</span></div>';
+            container.innerHTML += item;
+        }
+
+        div.className = 'legend'; // Add legend class
+        return div;
+    };
+
+    legend.addTo(mymap);
+}
+
+
+// Function to remove the canton legend
+function removeCantonLegend() {
+    var elements = document.getElementsByClassName('legend');
+    while (elements.length > 0) {
+        elements[0].parentNode.removeChild(elements[0]);
+    }
+}
+
+
     return div;
+
 };
 
 control.addTo(mymap);
