@@ -200,75 +200,74 @@ html, body {
         .addTo(mymap);
     
        // Create a variable to hold the GeoJSON layers
-   // Create a variable to hold the GeoJSON layers
-
    var cantonBoundariesLayer;
-
-// Load census data
 var censusData = {};
 
-fetch('/static/census.csv')
-            .then(response => response.text())
-            .then(csvText => {
-                var lines = csvText.split('\n');
-                lines.forEach(line => {
-                    if (line.trim() !== '') { // Check if the line is not empty
-                        var [location, bosniaks, croats, serbs, other] = line.split(',');
-                        location = location.trim();
-                        bosniaks = parseFloat(bosniaks.trim());
-                        croats = parseFloat(croats.trim());
-                        serbs = parseFloat(serbs.trim());
-                        other = parseFloat(other.trim());
-                        censusData[location] = { bosniaks, croats, serbs, other };
-                    }
-                });
+// Function to load the census data
+function loadCensusData() {
+    return fetch('/static/census.csv')
+        .then(response => response.text())
+        .then(csvText => {
+            var lines = csvText.split('\n');
+            lines.forEach(line => {
+                if (line.trim() !== '') { // Check if the line is not empty
+                    var [location, bosniaks, croats, serbs, other] = line.split(',');
+                    location = location.trim();
+                    bosniaks = parseFloat(bosniaks.trim());
+                    croats = parseFloat(croats.trim());
+                    serbs = parseFloat(serbs.trim());
+                    other = parseFloat(other.trim());
+                    censusData[location] = { bosniaks, croats, serbs, other };
+                }
             });
+        });
+}
 
-  // Load canton boundaries GeoJSON and style based on census data
-  fetch('/static/cantons.geojson')
-            .then(response => response.json())
-            .then(data => {
-                cantonBoundariesLayer = L.geoJSON(data, {
-                    style: function (feature) {
-                        var location = feature.properties.shapeName;
-                        var majorityGroup = 'Other';
-                        if (censusData[location]) {
-                            var { bosniaks, croats, serbs, other } = censusData[location];
-                            var maxValue = Math.max(bosniaks, croats, serbs, other);
-                            if (maxValue === bosniaks) {
-                                majorityGroup = 'Bosniaks';
-                            } else if (maxValue === croats) {
-                                majorityGroup = 'Croats';
-                            } else if (maxValue === serbs) {
-                                majorityGroup = 'Serbs';
-                            } else if (maxValue === other) {
-                                majorityGroup = 'Other';
-                            }
-                        }
-
-                        var fillColor;
-                        if (majorityGroup === 'Bosniaks') {
-                            fillColor = 'green';
-                        } else if (majorityGroup === 'Croats') {
-                            fillColor = 'blue';
-                        } else if (majorityGroup === 'Serbs') {
-                            fillColor = 'red';
+// Function to load the canton boundaries GeoJSON
+function loadCantonGeoJSON() {
+    return fetch('/static/cantons.geojson')
+        .then(response => response.json())
+        .then(data => {
+            cantonBoundariesLayer = L.geoJSON(data, {
+                style: function (feature) {
+                    var location = feature.properties.shapeName;
+                    var majorityGroup = 'Other';
+                    if (censusData[location]) {
+                        var { bosniaks, croats, serbs, other } = censusData[location];
+                        var maxValue = Math.max(bosniaks, croats, serbs, other);
+                        if (maxValue === bosniaks) {
+                            majorityGroup = 'Bosniaks';
+                        } else if (maxValue === croats) {
+                            majorityGroup = 'Croats';
+                        } else if (maxValue === serbs) {
+                            majorityGroup = 'Serbs';
                         } else {
-                            fillColor = 'gray';
-                            
+                            majorityGroup = 'Other';
                         }
-
-                        return {
-                            fillColor: fillColor,
-                            fillOpacity: 0.1,
-                            color: 'black',
-                            weight: 0.5
-                        };
                     }
-                });
-            });
 
-        // Load administrative_level_1.geojson
+                    var fillColor;
+                    if (majorityGroup === 'Bosniaks') {
+                        fillColor = 'green';
+                    } else if (majorityGroup === 'Croats') {
+                        fillColor = 'blue';
+                    } else if (majorityGroup === 'Serbs') {
+                        fillColor = 'red';
+                    } else {
+                        fillColor = 'gray';
+                    }
+
+                    return {
+                        fillColor: fillColor,
+                        fillOpacity: 0.1,
+                        color: 'black',
+                        weight: 0.5
+                    };
+                }
+            });
+        });
+}
+      // Load administrative_level_1.geojson
 
 // Predefined colors array
 var colors = ['purple', 'red', 'green']; // Example colors: red, blue, purple
@@ -447,29 +446,35 @@ control.onAdd = function (map) {
         }
     };
 
-     // Cantons checkbox
-     var containerCantons = L.DomUtil.create('div', 'flex-container', div);
-    var checkboxCantons = L.DomUtil.create('input', '', containerCantons);
-    checkboxCantons.type = 'checkbox';
-    checkboxCantons.checked = false;  // Unchecked initially
-    checkboxCantons.id = 'toggle-geojson-cantons';
-    
-    var iconCantons = L.DomUtil.create('span', 'icon-cantons', containerCantons);
-    iconCantons.innerHTML = '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="11.6,11.6 20.4,14 31.2,6.4 36.8,15.2 30.8,32.8 18.4,30.4 13.2,26 2,26.4 5.6,16" stroke="black" stroke-width="2" fill="transparent"/></svg>';
+ 
+// Cantons checkbox
+var containerCantons = L.DomUtil.create('div', 'flex-container', div);
+var checkboxCantons = L.DomUtil.create('input', '', containerCantons);
+checkboxCantons.type = 'checkbox';
+checkboxCantons.checked = false;  // Unchecked initially
+checkboxCantons.id = 'toggle-geojson-cantons';
 
-    var labelCantons = L.DomUtil.create('label', 'text-label', containerCantons);
-    labelCantons.htmlFor = 'toggle-geojson-cantons';
-    labelCantons.appendChild(document.createTextNode('ADM Lvl 3'));
-    checkboxCantons.onchange = function () {
-        if (checkboxCantons.checked) {
-            cantonBoundariesLayer.addTo(mymap).bringToBack();
-            addCantonLegend();
-        } else {
-            mymap.removeLayer(cantonBoundariesLayer);
-            removeCantonLegend();
-        }
-    };
+var iconCantons = L.DomUtil.create('span', 'icon-cantons', containerCantons);
+iconCantons.innerHTML = '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="11.6,11.6 20.4,14 31.2,6.4 36.8,15.2 30.8,32.8 18.4,30.4 13.2,26 2,26.4 5.6,16" stroke="black" stroke-width="2" fill="transparent"/></svg>';
 
+var labelCantons = L.DomUtil.create('label', 'text-label', containerCantons);
+labelCantons.htmlFor = 'toggle-geojson-cantons';
+labelCantons.appendChild(document.createTextNode('ADM Lvl 3'));
+
+checkboxCantons.onchange = function () {
+    if (checkboxCantons.checked) {
+        // Load the census data first, then load the canton boundaries
+        loadCensusData().then(() => {
+            loadCantonGeoJSON().then(() => {
+                cantonBoundariesLayer.addTo(mymap).bringToBack();
+                addCantonLegend();
+            });
+        });
+    } else {
+        mymap.removeLayer(cantonBoundariesLayer);
+        removeCantonLegend();
+    }
+};
 
     // Adding checkbox for Administrative Level 1
 var containerAdminLvl1 = L.DomUtil.create('div', 'flex-container', div);
@@ -486,6 +491,7 @@ checkboxAdminLvl1.onchange = function () {
         administrativeLevel1Layer.addTo(mymap).bringToBack();
     } else {
         mymap.removeLayer(administrativeLevel1Layer);
+      
     }
 };
 // Add canton legend function
@@ -496,7 +502,7 @@ function addCantonLegend() {
         var div = L.DomUtil.create('div', 'info legend');
 
         // Add legend title
-        div.innerHTML += '<div class="legend-title"><strong>The colours represent the majority of an ethnic group according to the 2013 census in the individual cantons</strong></div>';
+        div.innerHTML += '<div class="legend-title"><strong>The colours represent the majority of an ethnic group according to the 2013 census in each canton.</strong></div>';
 
         var grades = ['Bosniaks', 'Croats', 'Serbs', 'Other'];
         var colors = ['green', 'blue', 'red', 'gray'];
