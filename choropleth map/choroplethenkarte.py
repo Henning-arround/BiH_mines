@@ -8,27 +8,45 @@ from folium import plugins
 print("Current working directory:", os.getcwd())
 
 # Ändern des Arbeitsverzeichnisses auf das Verzeichnis der Datei
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-print("New working directory:", os.getcwd())
+if '__file__' in globals():
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    print("New working directory:", os.getcwd())
 
 # Schritt 1: Laden der Geodaten
-bosnia_gdf = gpd.read_file('geoBoundaries-BIH-ADM2.shp')
-print(bosnia_gdf.head())
+try:
+    bosnia_gdf = gpd.read_file('geoBoundaries-BIH-ADM2.shp')
+    print("Geodaten erfolgreich geladen.")
+    print(bosnia_gdf.head())
+except Exception as e:
+    print("Fehler beim Laden der Geodaten:", e)
 
 # Schritt 2: Laden der Landminen-Daten (vermintete Flächen pro Region)
-mines_data = pd.read_csv('landmine_areas.csv')
+try:
+    mines_data = pd.read_csv('landmine_areas.csv')
+    print("Landminen-Daten erfolgreich geladen.")
+    print(mines_data.head())
+except Exception as e:
+    print("Fehler beim Laden der Landminen-Daten:", e)
 
 # Schritt 3: Verknüpfung der Landminen-Daten mit den Geodaten
-# Annahme: Die Spalte mit den Regionsnamen in beiden Datensätzen heißt 'shapeName'
-bosnia_gdf = bosnia_gdf.merge(mines_data, on='shapeName')
+try:
+    bosnia_gdf = bosnia_gdf.merge(mines_data, on='shapeName')
+    print("Daten erfolgreich verknüpft.")
+except Exception as e:
+    print("Fehler beim Verknüpfen der Daten:", e)
 
-# Schritt 4: Choroplethenkarte erstellen
-# Erstellen einer Grundkarte
+# Schritt 4: Berechnung der Differenz zwischen 2019 und 2023 und Runden der Differenz
+bosnia_gdf['difference_2019_2023'] = (bosnia_gdf['Area_Square_Kilometers_2019'] - bosnia_gdf['Area_Square_Kilometers_2023']).round(2)
+
+# Schritt 5: Choroplethenkarte erstellen
 m = folium.Map(location=[43.9159, 17.6791], zoom_start=8)
+
+# FeatureGroups für 2019 und 2023
+layer_2019 = folium.FeatureGroup(name='2019', show=True)
+layer_2023 = folium.FeatureGroup(name='2023', show=False)
 
 # Hinzufügen von ethnischen Mehrheiten und Anpassen der Opazität
 for idx, row in bosnia_gdf.iterrows():
-    # Bestimmen der Farbe basierend auf der ethnischen Mehrheit
     if row['ethnicMajority'] == 'Bosniaken':
         fill_color = 'green'
     elif row['ethnicMajority'] == 'Serben':
@@ -38,40 +56,68 @@ for idx, row in bosnia_gdf.iterrows():
     else:
         fill_color = 'gray'  # Für den Fall, dass keine ethnische Mehrheit angegeben ist, sollte nicht vorkommen
 
-    # Bestimmen der Opazität basierend auf der Landminenverteilung
-    if pd.isna(row['landmine_percentage']):
-        fill_opacity = 0.2  # Niedrige Opazität für fehlende Landminendaten, sollte nicht vorkommen 
-    else:
-        fill_opacity = row['landmine_percentage'] / bosnia_gdf['landmine_percentage'].max()
+    # Berechnung der Opazitäten für 2019 und 2023
+    fill_opacity_2019 = 0.2  # Grundopazität, falls keine Landminendaten vorhanden
+    fill_opacity_2023 = 0.2  # Grundopazität, falls keine Landminendaten vorhanden
+    if not pd.isna(row['Area_Square_Kilometers_2019']):
+        fill_opacity_2019 = row['Area_Square_Kilometers_2019'] / bosnia_gdf['Area_Square_Kilometers_2019'].max()
+    if not pd.isna(row['Area_Square_Kilometers_2023']):
+        fill_opacity_2023 = row['Area_Square_Kilometers_2023'] / bosnia_gdf['Area_Square_Kilometers_2023'].max()
 
-    # Opazität erhöhen
-    fill_opacity += 0.1  # Zum Beispiel um 0.1 erhöhen
+    fill_opacity_2019 += 0.1  # Opazität erhöhen
+    fill_opacity_2023 += 0.1  # Opazität erhöhen
+    fill_opacity_2019 = min(fill_opacity_2019, 1)  # Begrenzen der Opazität auf maximal 1
+    fill_opacity_2023 = min(fill_opacity_2023, 1)  # Begrenzen der Opazität auf maximal 1
 
-    # Begrenzen der Opazität auf maximal 1
-    fill_opacity = min(fill_opacity, 1)
+    # Stilfunktion für 2019 und 2023
+    style_function_2019 = lambda x, color=fill_color, opacity=fill_opacity_2019: {'fillColor': color, 'color': color, 'fillOpacity': opacity, 'weight': 2}
+    style_function_2023 = lambda x, color=fill_color, opacity=fill_opacity_2023: {'fillColor': color, 'color': color, 'fillOpacity': opacity, 'weight': 2}
 
-    # Stil der Region definieren
-    style_function = lambda x, color=fill_color, opacity=fill_opacity: {'fillColor': color, 'color': color, 'fillOpacity': opacity, 'weight': 2}
+    # GeoJson hinzufügen für 2019
+    try:
+        folium.GeoJson(data=row.geometry.__geo_interface__, style_function=style_function_2019).add_to(layer_2019)
+    except Exception as e:
+        print(f"Fehler beim Hinzufügen der Region {row['shapeName']} (2019):", e)
 
-    # Region zur Karte hinzufügen
-    folium.GeoJson(data=row.geometry.__geo_interface__, style_function=style_function).add_to(m)
+    # GeoJson hinzufügen für 2023
+    try:
+        folium.GeoJson(data=row.geometry.__geo_interface__, style_function=style_function_2023).add_to(layer_2023)
+    except Exception as e:
+        print(f"Fehler beim Hinzufügen der Region {row['shapeName']} (2023):", e)
 
-    # Popup-Informationen hinzufügen
+    # Marker für die Unterschiede
     if row.geometry.geom_type == 'MultiPolygon':
         for polygon in row.geometry.geoms:
             centroid = polygon.representative_point()
             folium.Marker(
                 location=[centroid.y, centroid.x],
-                popup=f"<b>{row['shapeName']}</b>: {row['Area_Square_Kilometers']} km² verminte Fläche, {row['landmine_percentage']}% der Gesamtfläche",
+                popup=f"<b>{row['shapeName']}</b>: 2019: {row['Area_Square_Kilometers_2019']} km² verminte Fläche<br>2023: {row['Area_Square_Kilometers_2023']} km² verminte Fläche<br>Unterschied: {row['difference_2019_2023']} km²",
                 icon=folium.Icon(icon='info-sign', prefix='glyphicon', icon_size=(40, 40))  # Größere Symbole
-            ).add_to(m)
+            ).add_to(layer_2019)
+            folium.Marker(
+                location=[centroid.y, centroid.x],
+                popup=f"<b>{row['shapeName']}</b>: 2019: {row['Area_Square_Kilometers_2019']} km² verminte Fläche<br>2023: {row['Area_Square_Kilometers_2023']} km² verminte Fläche<br>Unterschied: {row['difference_2019_2023']} km²",
+                icon=folium.Icon(icon='info-sign', prefix='glyphicon', icon_size=(40, 40))
+            ).add_to(layer_2023)
     else:
         centroid = row.geometry.representative_point()
         folium.Marker(
             location=[centroid.y, centroid.x],
-            popup=f"<b>{row['shapeName']}</b>: {row['Area_Square_Kilometers']} km² verminte Fläche, {row['landmine_percentage']}% der Gesamtfläche",
+            popup=f"<b>{row['shapeName']}</b>:2019: {row['Area_Square_Kilometers_2019']} km² verminte Fläche<br>2023: {row['Area_Square_Kilometers_2023']} km² verminte Fläche<br>Unterschied: {row['difference_2019_2023']} km²",
             icon=folium.Icon(icon='info-sign', prefix='glyphicon', icon_size=(40, 40))  # Größere Symbole
-        ).add_to(m)
+        ).add_to(layer_2019)
+        folium.Marker(
+            location=[centroid.y, centroid.x],
+            popup=f"<b>{row['shapeName']}</b>: 2019: {row['Area_Square_Kilometers_2019']} km² verminte Fläche<br>2023: {row['Area_Square_Kilometers_2023']} km² verminte Fläche<br>Unterschied: {row['difference_2019_2023']} km²",
+            icon=folium.Icon(icon='info-sign', prefix='glyphicon', icon_size=(40, 40))  # Größere Symbole
+        ).add_to(layer_2023)
+
+# Hinzufügen der Layer zur Karte
+layer_2019.add_to(m)
+layer_2023.add_to(m)
+
+# Layer Control hinzufügen
+folium.LayerControl(collapsed=False, autoZIndex=False, exclusive=True).add_to(m)
 
 # Koordinatenanzeige beim Hovern über der Karte hinzufügen
 formatter = "function(num) {return L.Util.formatNum(num, 5) + ' º ';};"
@@ -87,7 +133,7 @@ mouse_position = plugins.MousePosition(
 )
 m.add_child(mouse_position)
 
-# Dynamische Legende erstellen
+# Dynamische Legenden erstellen
 legend_html = '''
 <div style="
     position: fixed;
@@ -124,7 +170,12 @@ legend_html = '''
 </div>
 '''
 
-m.get_root().html.add_child(folium.Element(legend_html))
+# Legenden zur Karte hinzufügen
+m.get_root().html.add_child(folium.Element(legend_html))  
 
-# Karte speichern
-m.save('landminen_ethnische_mehrheiten.html')
+# Karte anzeigen
+m.save('landminen_vergleich.html')
+
+
+
+
