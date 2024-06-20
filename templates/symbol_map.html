@@ -16,6 +16,53 @@ html, body {
     width: 100vw;
 }
 
+#infobox {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    text-align: left;
+    max-width: 400px; /* Set a max width to control the size */
+    height: auto; /* Set height to auto */
+    font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif; /* Ensure same font as Leaflet controls */
+    font-size: 14px; /* Match the font size of Leaflet controls */
+    z-index: 1000; /* Ensure it appears on top of the map */
+    display: none; /* Initially hidden */
+}
+
+#toggleButton {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+    z-index: 1000; /* Ensure it appears on top of the map */
+}
+
+#infobox .headline {
+    font-weight: bold;
+    font-size: 14pt;
+    color: black;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+#collapseArrow {
+    cursor: pointer;
+    text-align: right;
+    display: block;
+}
+
+
 .leaflet-control-layers {
     background: rgba(255, 255, 255, 0.5);
     padding: 10px; /* Increased padding from 10px to 20px */
@@ -87,7 +134,7 @@ html, body {
 .icon-incidents {
     flex-basis: 0;
     margin-right: 32px;
-    border-color: orange; /* Border color for incidents */
+    border-color: #FF8C00; /* Border color for incidents */
 }
 
 .icon-lifted {
@@ -107,7 +154,7 @@ html, body {
 }
 
 .icon-incidents::before {
-    background: orange; /* Inner circle background for incidents */
+    background: #FF8C00; /* Inner circle background for incidents */
 }
 
 .icon-lifted::before {
@@ -173,11 +220,38 @@ html, body {
 <body>
 
     <div id="mapid"></div>
+    <div id="toggleButton">More Information</div>
+    <div id="infobox">
+        <div id="collapseArrow">⬇️</div>
+        <div class="headline">BiH Minefield Map</div>
+        <div>
+            The data was extracted from the PDFs of the Mine Information Coordination Cell (MICC) of the EUFOR BiH mission. The original maps can be accessed here:
+            <a href="https://euforbih.org/index.php/bih-minefield-maps" target="_blank">https://euforbih.org/index.php/bih-minefield-maps</a>
+            <br>(last accessed: June 2024)
+            <br><br>
+            Note: This map is for humanities research only and is not intended for the precise localisation of mines. No guarantee can be given that the mines are located exactly at the positions indicated.
+        </div>
+    </div>
+    
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
     <script>
-        var mymap = L.map('mapid').setView([43.8563, 18.4131], 13);
+
+document.getElementById('toggleButton').onclick = function() {
+        var infobox = document.getElementById('infobox');
+        var toggleButton = document.getElementById('toggleButton');
+        infobox.style.display = infobox.style.display === 'block' ? 'none' : 'block';
+        toggleButton.style.display = toggleButton.style.display === 'none' ? 'block' : 'none';
+    };
+
+    document.getElementById('collapseArrow').onclick = function() {
+        var infobox = document.getElementById('infobox');
+        var toggleButton = document.getElementById('toggleButton');
+        infobox.style.display = 'none';
+        toggleButton.style.display = 'block';
+    };
+        var mymap = L.map('mapid').setView([43.8563, 18.4131], 8);
     
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -199,75 +273,38 @@ html, body {
         })
         .addTo(mymap);
     
-       // Create a variable to hold the GeoJSON layers
-   var cantonBoundariesLayer;
-var censusData = {};
+function onEachFeature(feature, layer) {
+    if (feature.properties && feature.properties.fileId) {
+        layer.on('mouseover', function (e) {
+            var tooltip = L.tooltip({
+                permanent: false,
+                direction: 'top',
+                className: 'feature-tooltip'
+            })
+            .setContent(feature.properties.fileId)
+            .setLatLng(e.latlng)
+            .addTo(mymap);
 
-// Function to load the census data
-function loadCensusData() {
-    return fetch('/static/census.csv')
-        .then(response => response.text())
-        .then(csvText => {
-            var lines = csvText.split('\n');
-            lines.forEach(line => {
-                if (line.trim() !== '') { // Check if the line is not empty
-                    var [location, bosniaks, croats, serbs, other] = line.split(',');
-                    location = location.trim();
-                    bosniaks = parseFloat(bosniaks.trim());
-                    croats = parseFloat(croats.trim());
-                    serbs = parseFloat(serbs.trim());
-                    other = parseFloat(other.trim());
-                    censusData[location] = { bosniaks, croats, serbs, other };
-                }
-            });
+            // Attach the tooltip to the layer
+            e.target._tooltip = tooltip;
         });
+
+        layer.on('mouseout', function (e) {
+            if (e.target._tooltip) {
+                mymap.removeLayer(e.target._tooltip);
+                e.target._tooltip = null;
+            }
+        });
+
+        layer.on('click', function (e) {
+            var fileId = feature.properties.fileId;
+            var fileIdPrefix = fileId.split('-')[0];
+            var url = `https://euforbih.org/images/infopoint/${fileIdPrefix}/${fileId}.pdf`;
+            window.open(url, '_blank');
+        });
+    }
 }
 
-// Function to load the canton boundaries GeoJSON
-function loadCantonGeoJSON() {
-    return fetch('/static/cantons.geojson')
-        .then(response => response.json())
-        .then(data => {
-            cantonBoundariesLayer = L.geoJSON(data, {
-                style: function (feature) {
-                    var location = feature.properties.shapeName;
-                    var majorityGroup = 'Other';
-                    if (censusData[location]) {
-                        var { bosniaks, croats, serbs, other } = censusData[location];
-                        var maxValue = Math.max(bosniaks, croats, serbs, other);
-                        if (maxValue === bosniaks) {
-                            majorityGroup = 'Bosniaks';
-                        } else if (maxValue === croats) {
-                            majorityGroup = 'Croats';
-                        } else if (maxValue === serbs) {
-                            majorityGroup = 'Serbs';
-                        } else {
-                            majorityGroup = 'Other';
-                        }
-                    }
-
-                    var fillColor;
-                    if (majorityGroup === 'Bosniaks') {
-                        fillColor = 'green';
-                    } else if (majorityGroup === 'Croats') {
-                        fillColor = 'blue';
-                    } else if (majorityGroup === 'Serbs') {
-                        fillColor = 'red';
-                    } else {
-                        fillColor = 'gray';
-                    }
-
-                    return {
-                        fillColor: fillColor,
-                        fillOpacity: 0.1,
-                        color: 'black',
-                        weight: 0.5
-                    };
-                }
-            });
-        });
-}
-      // Load administrative_level_1.geojson
 
 // Predefined colors array
 var colors = ['purple', 'red', 'green']; // Example colors: red, blue, purple
@@ -296,7 +333,7 @@ fetch('/static/administrative_level_1.geojson')
 var geojsonLayer, clearedAreasLayer, incidentsLayer, liftedMinefieldsLayer, cantonBoundariesLayer;
 
 // Load GeoJSON data
-fetch('/static/suspect_areas.geojson')
+fetch('/static/suspect_areas_simplyfied.geojson')
     .then(response => response.json())
     .then(data => {
         geojsonLayer = L.geoJSON(data, {
@@ -307,13 +344,14 @@ fetch('/static/suspect_areas.geojson')
                     color: 'red',
                     weight: 1
                 };
-            }
+            },
+            onEachFeature: onEachFeature
         });
         geojsonLayer.addTo(mymap);  // Only this layer is added initially
     });
 
 // Load cleared_areas.geojson
-fetch('/static/cleared_areas.geojson')
+fetch('/static/cleared_areas_simplyfied.geojson')
     .then(response => response.json())
     .then(data => {
         clearedAreasLayer = L.geoJSON(data, {
@@ -324,11 +362,11 @@ fetch('/static/cleared_areas.geojson')
                     color: 'blue',
                     weight: 1
                 };
-            }
+            },
+            onEachFeature: onEachFeature
         });
         // Do not add to the map initially
     });
-
 // Load incidents.geojson
 fetch('/static/incidents.geojson')
     .then(response => response.json())
@@ -338,14 +376,16 @@ fetch('/static/incidents.geojson')
                 // Using L.circle to create a simple circle marker
                 return L.circle(latlng, {
                     radius: 50, // Radius in meters; adjust as needed for visibility
-                    color: 'orange', // Outline color
-                    fillColor: 'orange', // Fill color
+                    color: '#FF8C00', // Dark orange outline color
+                    fillColor: '#FF8C00', // Dark orange fill color
                     fillOpacity: 0.5, // Fill opacity
                 });
-            }
+            },
+            onEachFeature: onEachFeature
         });
         // Do not add to the map initially
     });
+
 
 // Load lifted_minefields.geojson
 fetch('/static/lifted_minefields.geojson')
@@ -360,7 +400,8 @@ fetch('/static/lifted_minefields.geojson')
                     fillColor: 'green', // Fill color
                     fillOpacity: 0.5, // Fill opacity
                 });
-            }
+            },
+            onEachFeature: onEachFeature
         });
         // Do not add to the map initially
     });
@@ -446,36 +487,8 @@ control.onAdd = function (map) {
         }
     };
 
- 
-// Cantons checkbox
-var containerCantons = L.DomUtil.create('div', 'flex-container', div);
-var checkboxCantons = L.DomUtil.create('input', '', containerCantons);
-checkboxCantons.type = 'checkbox';
-checkboxCantons.checked = false;  // Unchecked initially
-checkboxCantons.id = 'toggle-geojson-cantons';
 
-var iconCantons = L.DomUtil.create('span', 'icon-cantons', containerCantons);
-iconCantons.innerHTML = '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="11.6,11.6 20.4,14 31.2,6.4 36.8,15.2 30.8,32.8 18.4,30.4 13.2,26 2,26.4 5.6,16" stroke="black" stroke-width="2" fill="transparent"/></svg>';
-
-var labelCantons = L.DomUtil.create('label', 'text-label', containerCantons);
-labelCantons.htmlFor = 'toggle-geojson-cantons';
-labelCantons.appendChild(document.createTextNode('ADM Lvl 3'));
-
-checkboxCantons.onchange = function () {
-    if (checkboxCantons.checked) {
-        // Load the census data first, then load the canton boundaries
-        loadCensusData().then(() => {
-            loadCantonGeoJSON().then(() => {
-                cantonBoundariesLayer.addTo(mymap).bringToBack();
-                addCantonLegend();
-            });
-        });
-    } else {
-        mymap.removeLayer(cantonBoundariesLayer);
-        removeCantonLegend();
-    }
-};
-
+    
     // Adding checkbox for Administrative Level 1
 var containerAdminLvl1 = L.DomUtil.create('div', 'flex-container', div);
 var checkboxAdminLvl1 = L.DomUtil.create('input', '', containerAdminLvl1);
@@ -494,50 +507,12 @@ checkboxAdminLvl1.onchange = function () {
       
     }
 };
-// Add canton legend function
-function addCantonLegend() {
-    var legend = L.control({ position: 'bottomright' });
-
-    legend.onAdd = function (map) {
-        var div = L.DomUtil.create('div', 'info legend');
-
-        // Add legend title
-        div.innerHTML += '<div class="legend-title"><strong>The colours represent the majority of an ethnic group according to the 2013 census in each canton.</strong></div>';
-
-        var grades = ['Bosniaks', 'Croats', 'Serbs', 'Other'];
-        var colors = ['green', 'blue', 'red', 'gray'];
-
-        // Container to center the items
-        var container = L.DomUtil.create('div', 'legend-item-container', div);
-
-        // Loop through grades and generate a label with a colored square for each grade
-        for (var i = 0; i < grades.length; i++) {
-            var item = '<div class="legend-item"><i style="background:' + colors[i] + '"></i><span>' + grades[i] + '</span></div>';
-            container.innerHTML += item;
-        }
-
-        div.className = 'legend'; // Add legend class
-        return div;
-    };
-
-    legend.addTo(mymap);
-}
-
-
-// Function to remove the canton legend
-function removeCantonLegend() {
-    var elements = document.getElementsByClassName('legend');
-    while (elements.length > 0) {
-        elements[0].parentNode.removeChild(elements[0]);
-    }
-}
-
-
     return div;
 
 };
 
 control.addTo(mymap);
+
 
 </script>
 
