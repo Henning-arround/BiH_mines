@@ -1,13 +1,13 @@
-shapeName,Area_Square_Kilometers,ethnicMajority,total_area,landmine_percentage
-Una-Sana Canton,95.08,Bosniaken,4125.0,2.30
-Posavina Canton,14.98,Kroaten,324.6,4.61
-Zenica-Doboj Canton,114.67,Bosniaken,3334.3,3.44
-Bosnian-Podrinje Canton GoraÅ¾de,46.83,Bosniaken,504.6,9.28
-Central Bosnia Canton,110.95,Bosniaken,3189.0,3.48
-Herzegovina-Neretva Canton,149.81,Kroaten,4401.0,3.40
-West Herzegovina Canton,0.82,Kroaten,1362.2,0.06
-Canton 10,78.96,Kroaten,4934.9,1.59
-Sarajevo Canton,58.06,Bosniaken,1276.9,4.55
-Brcko District,12.99,Bosniaken,493.0,2.63
-Republika Srpska,192.51,Serben,24641.0,0.78
-Tuzla Canton,80.69,Bosniaken,2649.0,3.05
+shapeName,ethnicMajority,Area_Square_Kilometers_2015,Area_Square_Kilometers_2019,Area_Square_Kilometers_2022,total_area
+Una-Sana Canton,Bosniaken,114.68,98.41,86.79,4125.0
+Posavina Canton,Kroaten,20.97,13.78,14.84,324.6
+Zenica-Doboj Canton,Bosniaken,128.78,114.10,101.95,3334.3
+Bosnian-Podrinje Canton GoraÅ¾de,Bosniaken,51.87,46.80,44.05,504.6
+Central Bosnia Canton,Bosniaken,149.47,111.69,109.70,3189.0
+Herzegovina-Neretva Canton,Kroaten,166.79,149.62,133.64,4401.0
+West Herzegovina Canton,Kroaten,0.54,0.08,0.82,1362.2
+Canton 10,Kroaten,92.96,76.72,62.53,4934.9
+Sarajevo Canton,Bosniaken,78.50,65.65,49.85,1276.9
+Brcko District,Bosniaken,18.68,13.10,13.06,493.0
+Republika Srpska,Serben,260.73,195.57,177.61,24641.0
+Tuzla Canton,Bosniaken,88.79,81.24,74.77,2649.0
