@@ -1,6 +1,0 @@
-Christian Heine mag keine Pie Charts, aber eine Karte mit vielen Pi Charts. 
-
-Ideen:
-1. Chloropleth (mine areas/district area rechnen) Karte und Heatmap?
-2. Symbole/polygone und Heatmap?
-3. Map und Statistiken zu cleared/suspect areas pro District? 
