@@ -190,4 +190,4 @@ legend_html = '''
 m.get_root().html.add_child(folium.Element(legend_html))  
 
 # Karte anzeigen
-m.save('landminen_vergleich.html')
+m.save('../templates/choro.html')
