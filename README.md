@@ -8,3 +8,5 @@ The mine events were extracted from the EUFORBIH PDFs:
 
 First, the PDFs were converted into SVGs using Inkscape. The landmine-related events were then extracted from the SVGs as vector graphics with their coordinates. This extraction can be traced in the script ‘detect_elements.ipynb’. 
 
+The large geojsons were simplified via Mapshapper so that less static data is loaded. However, the original files are also preserved.
+
