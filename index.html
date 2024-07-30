@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BiH Mine Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <style>
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+#mapid {
+    height: 100vh;
+    width: 100vw;
+}
+
+#infobox {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    text-align: left;
+    max-width: 400px; /* Set a max width to control the size */
+    height: auto; /* Set height to auto */
+    font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif; /* Ensure same font as Leaflet controls */
+    font-size: 14px; /* Match the font size of Leaflet controls */
+    z-index: 1000; /* Ensure it appears on top of the map */
+    display: none; /* Initially hidden */
+}
+
+#toggleButton {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+    z-index: 1000; /* Ensure it appears on top of the map */
+}
+
+#infobox .headline {
+    font-weight: bold;
+    font-size: 14pt;
+    color: black;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+#collapseArrow {
+    cursor: pointer;
+    text-align: right;
+    display: block;
+}
+
+
+.leaflet-control-layers {
+    background: rgba(255, 255, 255, 0.5);
+    padding: 10px; /* Increased padding from 10px to 20px */
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    text-align: left;
+    transform: translateY(100%); /* Center it vertically */
+}
+
+.headline {
+    font-weight: bold;
+    font-size: 12pt;
+    color: black;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.leaflet-control-layers div {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.leaflet-control-layers label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    font-size: 12pt;
+}
+
+.leaflet-control-layers input[type="checkbox"] {
+    flex: 0 0 20px;
+    margin-right: 10px;
+}
+
+.icon-box {
+    flex: 0 0 40px;
+    height: 40px;
+    margin-right: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.icon-suspect, .icon-cleared {
+    width: 20px;
+    height: 20px;
+    background: transparent;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 0% 50%);
+}
+
+.icon-suspect {
+    background: rgba(255, 0, 0, 0.5);
+    border: 1px solid red;
+}
+
+.icon-cleared {
+    background: rgba(0, 0, 255, 0.5);
+    border: 1px solid blue;
+}
+
+.icon-incidents, .icon-lifted {
+    width: 16px; /* Set width and height to the same value to ensure circular shape */
+    height: 16px; /* Set width and height to the same value to ensure circular shape */
+    border-radius: 50%;
+    border: 2px solid; /* Add non-transparent border */
+}
+
+.icon-incidents {
+    flex-basis: 0;
+    margin-right: 32px;
+    border-color: #FF8C00; /* Border color for incidents */
+}
+
+.icon-lifted {
+    flex-basis: 0;
+    margin-right: 32px;
+    border-color: green; /* Border color for lifted minefields */
+}
+
+.icon-incidents::before,
+.icon-lifted::before {
+    content: '';
+    width: 16px; /* Adjust size to be smaller */
+    height: 16px; /* Adjust size to be smaller */
+    border-radius: 50%;
+    background: currentColor; /* Use currentColor for background */
+    opacity: 0.5; /* Set opacity */
+}
+
+.icon-incidents::before {
+    background: #FF8C00; /* Inner circle background for incidents */
+}
+
+.icon-lifted::before {
+    background: green; /* Inner circle background for lifted minefields */
+}
+.icon-cantons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-right: 20px;
+
+}
+.legend {
+    display: flex;
+    flex-direction: column; /* Align items in a column */
+    align-items: center; /* Center items horizontally */
+    background: rgba(255, 255, 255, 0.5);
+    padding: 5px; /* Add padding */
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    text-align: center; /* Center-align the text */
+    font-size: 14px; /* Increase text size */
+    transform: translateY(30%); /* Center it vertically */
+}
+
+.legend .legend-title {
+    margin-bottom: 10px; /* Space below the title */
+}
+
+.legend .legend-item-container {
+    display: flex;
+    justify-content: center; /* Center items horizontally */
+}
+
+.legend .legend-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Align items to the left */
+    margin-bottom: 4px; /* Space between items */
+    margin-right: 10px;
+    width: 100%;
+}
+
+.legend i {
+    display: inline-block; /* Align boxes inline */
+    width: 18px;
+    height: 18px;
+    opacity: 0.3; /* Set opacity */
+    border-radius: 3px; /* Optional: rounded corners for the color boxes */
+    margin-right: 5px; /* Space between the icon and text */
+}
+
+
+</style>
+
+
+
+
+    </style>
+</head>
+<body>
+
+    <div id="mapid"></div>
+    <div id="toggleButton">More Information</div>
+    <div id="infobox">
+        <div id="collapseArrow">⬇️</div>
+        <div class="headline">BiH Minefield Map</div>
+        <div>
+            The data was extracted from the PDFs of the Mine Information Coordination Cell (MICC) of the EUFOR BiH mission. The original maps can be accessed here:
+            <a href="https://euforbih.org/index.php/bih-minefield-maps" target="_blank">https://euforbih.org/index.php/bih-minefield-maps</a>
+            <br>(last accessed: June 2024)
+            <br><br>
+            Note: This map is for humanities research only and is not intended for the precise localisation of mines. No guarantee can be given that the mines are located exactly at the positions indicated.
+        </div>
+    </div>
+    
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script>
+
+document.getElementById('toggleButton').onclick = function() {
+        var infobox = document.getElementById('infobox');
+        var toggleButton = document.getElementById('toggleButton');
+        infobox.style.display = infobox.style.display === 'block' ? 'none' : 'block';
+        toggleButton.style.display = toggleButton.style.display === 'none' ? 'block' : 'none';
+    };
+
+    document.getElementById('collapseArrow').onclick = function() {
+        var infobox = document.getElementById('infobox');
+        var toggleButton = document.getElementById('toggleButton');
+        infobox.style.display = 'none';
+        toggleButton.style.display = 'block';
+    };
+        var mymap = L.map('mapid').setView([43.8563, 18.4131], 8);
+    
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(mymap);
+    
+        // Add the search bar
+        var geocoder = L.Control.geocoder({
+                defaultMarkGeocode: false
+            })
+        .on('markgeocode', function(e) {
+            var latlng = e.geocode.center;
+            mymap.setView(latlng, 13); // Change the zoom level if needed
+            var marker = L.marker(latlng).addTo(mymap);
+    
+            // Add an event listener to remove the marker when the map is moved
+            mymap.on('move', function() {
+                mymap.removeLayer(marker);
+            });
+        })
+        .addTo(mymap);
+    
+function onEachFeature(feature, layer) {
+    if (feature.properties && feature.properties.fileId) {
+        layer.on('mouseover', function (e) {
+            var tooltip = L.tooltip({
+                permanent: false,
+                direction: 'top',
+                className: 'feature-tooltip'
+            })
+            .setContent(feature.properties.fileId)
+            .setLatLng(e.latlng)
+            .addTo(mymap);
+
+            // Attach the tooltip to the layer
+            e.target._tooltip = tooltip;
+        });
+
+        layer.on('mouseout', function (e) {
+            if (e.target._tooltip) {
+                mymap.removeLayer(e.target._tooltip);
+                e.target._tooltip = null;
+            }
+        });
+
+        layer.on('click', function (e) {
+            var fileId = feature.properties.fileId;
+            var fileIdPrefix = fileId.split('-')[0];
+            var url = `https://euforbih.org/images/infopoint/${fileIdPrefix}/${fileId}.pdf`;
+            window.open(url, '_blank');
+        });
+    }
+}
+
+
+// Predefined colors array
+var colors = ['purple', 'red', 'green']; // Example colors: red, blue, purple
+
+// Load administrative_level_1.geojson with cycling colors for each polygon
+var administrativeLevel1Layer;
+var colorIndex = 0; // Initialize color index
+
+fetch('/static/administrative_level_1.geojson')
+    .then(response => response.json())
+    .then(data => {
+        administrativeLevel1Layer = L.geoJSON(data, {
+            style: function (feature) {
+                var fillColor = colors[colorIndex % colors.length]; // Cycle through colors array
+                colorIndex++; // Increment index for next polygon
+                return {
+                    color: 'brown', // Uniform dark brown borders for all polygons
+                    weight: 2, // Thicker border lines
+                    fillColor: fillColor, // Use cycling color
+                    fillOpacity: 0.05  // Slightly transparent fill
+                };
+            }
+        });
+        // Do not add to the map initially
+    });
+var geojsonLayer, clearedAreasLayer, incidentsLayer, liftedMinefieldsLayer, cantonBoundariesLayer;
+
+// Load GeoJSON data
+fetch('/static/suspect_areas_simplyfied.geojson')
+    .then(response => response.json())
+    .then(data => {
+        geojsonLayer = L.geoJSON(data, {
+            style: function (feature) {
+                return {
+                    fillColor: 'red',
+                    fillOpacity: 0.3,
+                    color: 'red',
+                    weight: 1
+                };
+            },
+            onEachFeature: onEachFeature
+        });
+        geojsonLayer.addTo(mymap);  // Only this layer is added initially
+    });
+
+// Load cleared_areas.geojson
+fetch('/static/cleared_areas_simplyfied.geojson')
+    .then(response => response.json())
+    .then(data => {
+        clearedAreasLayer = L.geoJSON(data, {
+            style: function (feature) {
+                return {
+                    fillColor: 'blue', // Different fill color
+                    fillOpacity: 0.3,
+                    color: 'blue',
+                    weight: 1
+                };
+            },
+            onEachFeature: onEachFeature
+        });
+        // Do not add to the map initially
+    });
+// Load incidents.geojson
+fetch('/static/incidents.geojson')
+    .then(response => response.json())
+    .then(data => {
+        incidentsLayer = L.geoJSON(data, {
+            pointToLayer: function (feature, latlng) {
+                // Using L.circle to create a simple circle marker
+                return L.circle(latlng, {
+                    radius: 50, // Radius in meters; adjust as needed for visibility
+                    color: '#FF8C00', // Dark orange outline color
+                    fillColor: '#FF8C00', // Dark orange fill color
+                    fillOpacity: 0.5, // Fill opacity
+                });
+            },
+            onEachFeature: onEachFeature
+        });
+        // Do not add to the map initially
+    });
+
+
+// Load lifted_minefields.geojson
+fetch('/static/lifted_minefields.geojson')
+    .then(response => response.json())
+    .then(data => {
+        liftedMinefieldsLayer = L.geoJSON(data, {
+            pointToLayer: function (feature, latlng) {
+                // Using L.circle to create a simple circle marker
+                return L.circle(latlng, {
+                    radius: 50, // Radius in meters; adjust as needed for visibility
+                    color: 'green', // Outline color
+                    fillColor: 'green', // Fill color
+                    fillOpacity: 0.5, // Fill opacity
+                });
+            },
+            onEachFeature: onEachFeature
+        });
+        // Do not add to the map initially
+    });
+
+// Modify the custom control to handle all layers
+var control = L.control({position: 'topright'});
+control.onAdd = function (map) {
+    var div = L.DomUtil.create('div', 'leaflet-control-layers');
+
+    // Add the headline
+    var headline = L.DomUtil.create('div', 'headline', div);
+    headline.innerHTML = 'View various mine-related <br> events';
+
+    // Suspect areas checkbox
+    var containerSuspect = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxSuspect = L.DomUtil.create('input', '', containerSuspect);
+    checkboxSuspect.type = 'checkbox';
+    checkboxSuspect.checked = true;  // Only this one is checked initially
+    checkboxSuspect.id = 'toggle-geojson-suspect';
+    var iconSuspect = L.DomUtil.create('span', 'icon-box icon-suspect', containerSuspect);
+    var labelSuspect = L.DomUtil.create('label', 'text-label', containerSuspect);
+    labelSuspect.htmlFor = 'toggle-geojson-suspect';
+    labelSuspect.appendChild(document.createTextNode('Suspect Areas'));
+    checkboxSuspect.onchange = function () {
+        if (checkboxSuspect.checked) {
+            geojsonLayer.addTo(mymap);
+        } else {
+            mymap.removeLayer(geojsonLayer);
+        }
+    };
+
+    // Cleared areas checkbox
+    var containerCleared = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxCleared = L.DomUtil.create('input', '', containerCleared);
+    checkboxCleared.type = 'checkbox';
+    checkboxCleared.checked = false;  // Unchecked initially
+    checkboxCleared.id = 'toggle-geojson-cleared';
+    var iconCleared = L.DomUtil.create('span', 'icon-box icon-cleared', containerCleared);
+    var labelCleared = L.DomUtil.create('label', 'text-label', containerCleared);
+    labelCleared.htmlFor = 'toggle-geojson-cleared';
+    labelCleared.appendChild(document.createTextNode('Cleared Areas'));
+    checkboxCleared.onchange = function () {
+        if (checkboxCleared.checked) {
+            clearedAreasLayer.addTo(mymap);
+        } else {
+            mymap.removeLayer(clearedAreasLayer);
+        }
+    };
+
+    // Incidents checkbox
+    var containerIncidents = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxIncidents = L.DomUtil.create('input', '', containerIncidents);
+    checkboxIncidents.type = 'checkbox';
+    checkboxIncidents.checked = false;  // Unchecked initially
+    checkboxIncidents.id = 'toggle-geojson-incidents';
+    var iconIncidents = L.DomUtil.create('span', 'icon-box icon-incidents', containerIncidents);
+    var labelIncidents = L.DomUtil.create('label', 'text-label', containerIncidents);
+    labelIncidents.htmlFor = 'toggle-geojson-incidents';
+    labelIncidents.appendChild(document.createTextNode('Incidents'));
+    checkboxIncidents.onchange = function () {
+        if (checkboxIncidents.checked) {
+            incidentsLayer.addTo(mymap);
+        } else {
+            mymap.removeLayer(incidentsLayer);
+        }
+    };
+
+    // Lifted minefields checkbox
+    var containerLifted = L.DomUtil.create('div', 'flex-container', div);
+    var checkboxLiftedMinefields = L.DomUtil.create('input', '', containerLifted);
+    checkboxLiftedMinefields.type = 'checkbox';
+    checkboxLiftedMinefields.checked = false;  // Unchecked initially
+    checkboxLiftedMinefields.id = 'toggle-geojson-lifted-minefields';
+    var iconLiftedMinefields = L.DomUtil.create('span', 'icon-box icon-lifted', containerLifted);
+    var labelLiftedMinefields = L.DomUtil.create('label', 'text-label', containerLifted);
+    labelLiftedMinefields.htmlFor = 'toggle-geojson-lifted-minefields';
+    labelLiftedMinefields.appendChild(document.createTextNode('Lifted Minefields'));
+    checkboxLiftedMinefields.onchange = function () {
+        if (checkboxLiftedMinefields.checked) {
+            liftedMinefieldsLayer.addTo(mymap);
+        } else {
+            mymap.removeLayer(liftedMinefieldsLayer);
+        }
+    };
+
+
+    
+    // Adding checkbox for Administrative Level 1
+var containerAdminLvl1 = L.DomUtil.create('div', 'flex-container', div);
+var checkboxAdminLvl1 = L.DomUtil.create('input', '', containerAdminLvl1);
+checkboxAdminLvl1.type = 'checkbox';
+checkboxAdminLvl1.id = 'toggle-geojson-admin-lvl1';
+var iconAdminLvl1 = L.DomUtil.create('span', 'icon-cantons', containerAdminLvl1); // Using the same icon as for cantons
+iconAdminLvl1.innerHTML = '<svg width="40" height="40" viewBox="0 0 40 40"><polyline points="2.0,11.6 3.2,7.6 6.4,8.4 9.6,9.2 11.6,11.6 10.0,13.2 7.6,12.4 8.0,14.8 9.6,17.2 11.6,18.8 12.4,20.0 15.6,21.2 16.4,18.8 16.4,16.8 18.0,16.8 21.2,16.0 23.2,14.8 26.4,12.4 29.2,11.2 30.8,11.2 34.0,9.6 34.0,12.4 31.6,14.4 29.2,14.8 26.8,15.6 23.6,18.4 26.4,20.8 24.0,20.8 21.2,22.4 22.0,25.2 22.8,27.6 23.6,31.2 23.6,33.2 23.6,36.0 24.0,39.2 22.4,40.0" stroke="black" stroke-width="2" fill="none"/></svg>';
+var labelAdminLvl1 = L.DomUtil.create('label', 'text-label', containerAdminLvl1);
+labelAdminLvl1.htmlFor = 'toggle-geojson-admin-lvl1';
+labelAdminLvl1.appendChild(document.createTextNode('ADM Lvl 1'));
+checkboxAdminLvl1.onchange = function () {
+    if (checkboxAdminLvl1.checked) {
+        administrativeLevel1Layer.addTo(mymap).bringToBack();
+    } else {
+        mymap.removeLayer(administrativeLevel1Layer);
+      
+    }
+};
+    return div;
+
+};
+
+control.addTo(mymap);
+
+
+</script>
+
+</body>
+</html>

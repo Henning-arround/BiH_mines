@@ -2,4 +2,6 @@ mines
 dropped_functions.txt
 data
 abgabe*
+choropleth map/
+templates/choro.html
 
