@@ -313,7 +313,7 @@ var colors = ['purple', 'red', 'green']; // Example colors: red, blue, purple
 var administrativeLevel1Layer;
 var colorIndex = 0; // Initialize color index
 
-fetch('/static/administrative_level_1.geojson')
+fetch('static/administrative_level_1.geojson')
     .then(response => response.json())
     .then(data => {
         administrativeLevel1Layer = L.geoJSON(data, {
@@ -333,7 +333,7 @@ fetch('/static/administrative_level_1.geojson')
 var geojsonLayer, clearedAreasLayer, incidentsLayer, liftedMinefieldsLayer, cantonBoundariesLayer;
 
 // Load GeoJSON data
-fetch('/static/suspect_areas_simplyfied.geojson')
+fetch('static/suspect_areas_simplyfied.geojson')
     .then(response => response.json())
     .then(data => {
         geojsonLayer = L.geoJSON(data, {
@@ -351,7 +351,7 @@ fetch('/static/suspect_areas_simplyfied.geojson')
     });
 
 // Load cleared_areas.geojson
-fetch('/static/cleared_areas_simplyfied.geojson')
+fetch('static/cleared_areas_simplyfied.geojson')
     .then(response => response.json())
     .then(data => {
         clearedAreasLayer = L.geoJSON(data, {
@@ -368,7 +368,7 @@ fetch('/static/cleared_areas_simplyfied.geojson')
         // Do not add to the map initially
     });
 // Load incidents.geojson
-fetch('/static/incidents.geojson')
+fetch('static/incidents.geojson')
     .then(response => response.json())
     .then(data => {
         incidentsLayer = L.geoJSON(data, {
@@ -388,7 +388,7 @@ fetch('/static/incidents.geojson')
 
 
 // Load lifted_minefields.geojson
-fetch('/static/lifted_minefields.geojson')
+fetch('static/lifted_minefields.geojson')
     .then(response => response.json())
     .then(data => {
         liftedMinefieldsLayer = L.geoJSON(data, {
