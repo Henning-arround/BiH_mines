@@ -311,7 +311,7 @@ var currentCensusData = censusData;
 
 function loadCensusData() {
     return Promise.all([
-        fetch('/static/census_2013.csv')
+        fetch('static/census_2013.csv')
             .then(response => response.text())
             .then(csvText => {
                 var lines = csvText.split('\n');
@@ -327,7 +327,7 @@ function loadCensusData() {
                     }
                 });
             }),
-        fetch('/static/census_1991.csv')
+        fetch('static/census_1991.csv')
             .then(response => response.text())
             .then(csvText => {
                 var lines = csvText.split('\n');
@@ -348,7 +348,7 @@ function loadCensusData() {
 
 var cantonBoundariesLayer;
 function loadCantonGeoJSON() {
-    return fetch('/static/cantons.geojson')
+    return fetch('static/cantons.geojson')
         .then(response => response.json())
         .then(data => {
             if (cantonBoundariesLayer) {
