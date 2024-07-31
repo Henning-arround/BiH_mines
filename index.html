@@ -304,7 +304,101 @@ function onEachFeature(feature, layer) {
         });
     }
 }
+       // Create a variable to hold the GeoJSON layers
+var censusData = {};
+var censusData1991 = {};
+var currentCensusData = censusData;
 
+function loadCensusData() {
+    return Promise.all([
+        fetch('/static/census_2013.csv')
+            .then(response => response.text())
+            .then(csvText => {
+                var lines = csvText.split('\n');
+                lines.forEach(line => {
+                    if (line.trim() !== '') {
+                        var [location, bosniaks, croats, serbs, other] = line.split(',');
+                        location = location.trim();
+                        bosniaks = parseFloat(bosniaks.trim());
+                        croats = parseFloat(croats.trim());
+                        serbs = parseFloat(serbs.trim());
+                        other = parseFloat(other.trim());
+                        censusData[location] = { bosniaks, croats, serbs, other };
+                    }
+                });
+            }),
+        fetch('/static/census_1991.csv')
+            .then(response => response.text())
+            .then(csvText => {
+                var lines = csvText.split('\n');
+                lines.forEach(line => {
+                    if (line.trim() !== '') {
+                        var [location, bosniaks, croats, serbs, other] = line.split(',');
+                        location = location.trim();
+                        bosniaks = parseFloat(bosniaks.trim());
+                        croats = parseFloat(croats.trim());
+                        serbs = parseFloat(serbs.trim());
+                        other = parseFloat(other.trim());
+                        censusData1991[location] = { bosniaks, croats, serbs, other };
+                    }
+                });
+            })
+    ]);
+}
+
+var cantonBoundariesLayer;
+function loadCantonGeoJSON() {
+    return fetch('/static/cantons.geojson')
+        .then(response => response.json())
+        .then(data => {
+            if (cantonBoundariesLayer) {
+                mymap.removeLayer(cantonBoundariesLayer);
+            }
+
+            cantonBoundariesLayer = L.geoJSON(data, {
+                style: function (feature) {
+                    var location = feature.properties.shapeName;
+                    var majorityGroup = 'Other';
+                    var fillColor = 'black'; // Default color
+
+                    if (currentCensusData[location]) {
+                        var { bosniaks, croats, serbs, other } = currentCensusData[location];
+                        var maxValue = Math.max(bosniaks, croats, serbs, other);
+
+                        if (maxValue >= 50.00) {
+                            if (maxValue === bosniaks) {
+                                majorityGroup = 'Bosniaks';
+                                fillColor = 'green';
+                            } else if (maxValue === croats) {
+                                majorityGroup = 'Croats';
+                                fillColor = 'blue';
+                            } else if (maxValue === serbs) {
+                                majorityGroup = 'Serbs';
+                                fillColor = 'red';
+                            } else {
+                                majorityGroup = 'Other';
+                                fillColor = 'orange';
+                            }
+                        }
+                    }
+
+                    return {
+                        fillColor: fillColor,
+                        fillOpacity: 0.17,
+                        color: 'black',
+                        weight: 0.5
+                    };
+                }
+            });
+
+            cantonBoundariesLayer.addTo(mymap).bringToBack();
+        });
+}
+
+// Function to update canton GeoJSON layer
+function updateCantonGeoJSON() {
+    loadCantonGeoJSON();
+}
 
 // Predefined colors array
 var colors = ['purple', 'red', 'green']; // Example colors: red, blue, purple
@@ -507,6 +601,98 @@ checkboxAdminLvl1.onchange = function () {
       
     }
 };
+// Cantons checkbox
+var containerCantons = L.DomUtil.create('div', 'flex-container', div);
+var checkboxCantons = L.DomUtil.create('input', '', containerCantons);
+checkboxCantons.type = 'checkbox';
+checkboxCantons.checked = false;  // Unchecked initially
+checkboxCantons.id = 'toggle-geojson-cantons';
+
+var iconCantons = L.DomUtil.create('span', 'icon-cantons', containerCantons);
+iconCantons.innerHTML = '<svg width="40" height="40" viewBox="0 0 40 40"><polygon points="11.6,11.6 20.4,14 31.2,6.4 36.8,15.2 30.8,32.8 18.4,30.4 13.2,26 2,26.4 5.6,16" stroke="black" stroke-width="2" fill="transparent"/></svg>';
+
+var labelCantons = L.DomUtil.create('label', 'text-label', containerCantons);
+labelCantons.htmlFor = 'toggle-geojson-cantons';
+labelCantons.appendChild(document.createTextNode('ADM Lvl 3'));
+
+checkboxCantons.onchange = function () {
+    if (checkboxCantons.checked) {
+        // Load the census data first, then load the canton boundaries
+        loadCensusData().then(() => {
+            currentCensusData = censusData; // Default to 2013 census data
+            loadCantonGeoJSON().then(() => {
+                cantonBoundariesLayer.addTo(mymap).bringToBack();
+                addCantonLegend();
+            });
+        });
+    } else {
+        mymap.removeLayer(cantonBoundariesLayer);
+        removeCantonLegend();
+    }
+};
+
+function addCantonLegend() {
+    var legend = L.control({ position: 'bottomright' });
+
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend');
+
+        // Add legend title
+        div.innerHTML += '<div class="legend-title"><strong>The colours represent the majority of an ethnic group according to the census in each canton.</strong></div>';
+
+        // Add the checkboxes
+        var checkboxContainer = L.DomUtil.create('div', 'legend-item-container', div);
+        checkboxContainer.innerHTML = `
+            <label>Select Census Year:</label><br>
+            <input type="radio" id="census2013" name="censusYear" value="2013" checked>
+            <label for="census2013">2013</label><br>
+            <input type="radio" id="census1991" name="censusYear" value="1991">
+            <label for="census1991">1991</label>
+        `;
+
+        // Handle checkbox change
+        var census2013 = checkboxContainer.querySelector('#census2013');
+        var census1991 = checkboxContainer.querySelector('#census1991');
+        census2013.onchange = function () {
+            if (census2013.checked) {
+                currentCensusData = censusData;
+                updateCantonGeoJSON();
+            }
+        };
+        census1991.onchange = function () {
+            if (census1991.checked) {
+                currentCensusData = censusData1991;
+                updateCantonGeoJSON();
+            }
+        };
+
+        var grades = ['Bosniaks', 'Croats', 'Serbs', 'No Majority'];
+        var colors = ['green', 'blue', 'red', 'black'];
+
+        // Container to center the items
+        var container = L.DomUtil.create('div', 'legend-item-container', div);
+
+        // Loop through grades and generate a label with a colored square for each grade
+        for (var i = 0; i < grades.length; i++) {
+            var item = '<div class="legend-item"><i style="background:' + colors[i] + '"></i><span>' + grades[i] + '</span></div>';
+            container.innerHTML += item;
+        }
+
+        div.className = 'legend'; // Add legend class
+        return div;
+    };
+
+    legend.addTo(mymap);
+}
+
+
+// Function to remove the canton legend
+function removeCantonLegend() {
+    var elements = document.getElementsByClassName('legend');
+    while (elements.length > 0) {
+        elements[0].parentNode.removeChild(elements[0]);
+    }
+}
     return div;
 
 };
